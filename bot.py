@@ -6,7 +6,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 
-TOKEN = "8332640617:AAEt-v1BVFpC4pGHNW2JhgZJeI5X6bfM7ec"
+import os
+TOKEN = os.getenv("BOT_TOKEN")
 
 DATA_FILE = "versions.json"
 
