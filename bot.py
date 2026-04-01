@@ -13,7 +13,6 @@ from telegram.ext import (
     filters
 )
 
-# ===== Настройки =====
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_CODE = "SIMSADMIN123"
 admins = set()
@@ -41,7 +40,7 @@ def save_versions(data):
     with open(VERSIONS_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-# ===== Получение версии мода =====
+# ===== Получение версии с сайта =====
 def get_version(url):
     try:
         r = requests.get(url, headers={"User-Agent":"Mozilla/5.0"}, timeout=15)
@@ -55,7 +54,6 @@ def main_menu():
     keyboard = [
         [InlineKeyboardButton("🔎 Проверить обновления", callback_data="check")],
         [InlineKeyboardButton("📦 Список модов", callback_data="mods")],
-        [InlineKeyboardButton("⚙ Включить авто-проверку", callback_data="auto")],
         [InlineKeyboardButton("🔑 Админ панель", callback_data="admin")]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -75,7 +73,8 @@ def admin_menu():
 # ===== Команды =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Бот отслеживания обновлений модов Sims 4",
+        "Бот отслеживания обновлений модов Sims 4\n\n"
+        "Сначала укажите версии модов, которые установлены у вас.",
         reply_markup=main_menu()
     )
 
@@ -84,40 +83,57 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     await query.edit_message_text("Главное меню", reply_markup=main_menu())
 
-# ===== Список модов =====
+# ===== Список модов с кнопкой «Обновил» =====
 async def mods_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     mods = load_mods()
     versions = load_versions()
     text = "📦 Отслеживаемые моды:\n\n"
+    keyboard = []
     for mod in mods:
         last_versions = versions.get(mod, ["—"])
         prev = last_versions[-2] if len(last_versions) > 1 else "—"
         last = last_versions[-1] if last_versions else "—"
-        text += f"• {mod} | Предпоследняя: {prev}, Последняя: {last}\n"
-    await query.edit_message_text(text, reply_markup=back_button())
+        installed = context.user_data.get("installed_versions", {}).get(mod, "—")
+        text += f"• {mod} | Предпоследняя: {prev}, Последняя: {last}, Установлено: {installed}\n"
+        keyboard.append([InlineKeyboardButton(f"✅ Обновил {mod}", callback_data=f"updated|{mod}")])
+    keyboard.append([InlineKeyboardButton("⬅ Назад", callback_data="menu")])
+    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-# ===== Проверка обновлений =====
-def check_updates():
+# ===== Проверка обновлений для пользователя =====
+def check_updates_for_user(user_data):
     mods = load_mods()
     versions = load_versions()
     messages = []
     buttons = []
 
+    installed_versions = user_data.get("installed_versions", {})
+
     for mod, data in mods.items():
+        last_versions = versions.get(mod, ["—"])
+        last = last_versions[-1] if last_versions else "—"
+        prev = last_versions[-2] if len(last_versions) > 1 else "—"
+        installed = installed_versions.get(mod, "—")
+
+        # Получаем реальную версию с сайта
         new_version = get_version(data["url"])
-        old_versions = versions.get(mod, [])
-        if not old_versions or old_versions[-1] != new_version:
-            # Добавляем в список версий
-            if len(old_versions) == 2:
-                old_versions = [old_versions[-1], new_version]
+        if last != new_version:
+            if len(last_versions) == 2:
+                last_versions = [last_versions[-1], new_version]
             else:
-                old_versions.append(new_version)
-            versions[mod] = old_versions
-            messages.append(f"🆕 Новый патч мода {mod} | {new_version}")
+                last_versions.append(new_version)
+            versions[mod] = last_versions
+            save_versions(versions)
+            last = new_version
+
+        if installed != last:
+            messages.append(
+                f"🆕 Обновление для {mod}!\n"
+                f"Предпоследняя: {prev}\nПоследняя: {last}\nУстановлено: {installed}"
+            )
             buttons.append([InlineKeyboardButton(f"⬇ Скачать {mod}", url=data["url"])])
-    save_versions(versions)
+
     if not messages:
         return "✅ Все моды обновлены", None
     return "\n\n".join(messages), buttons
@@ -125,35 +141,12 @@ def check_updates():
 async def check_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    text, buttons = check_updates()
+    text, buttons = check_updates_for_user(context.user_data)
     if buttons:
         buttons.append([InlineKeyboardButton("⬅ Назад", callback_data="menu")])
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
     else:
         await query.edit_message_text(text, reply_markup=back_button())
-
-# ===== Автопроверка =====
-async def auto_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    if user_id not in admins:
-        await query.answer("Нет доступа", show_alert=True)
-        return
-    # Проверка job_queue
-    if context.job_queue is None:
-        await query.edit_message_text("Ошибка: job_queue не инициализирован!", reply_markup=back_button())
-        return
-    # Запуск задачи
-    context.job_queue.run_repeating(auto_task_job, interval=3600, first=10, data={"chat_id": query.message.chat_id})
-    await query.edit_message_text("🔔 Автопроверка включена", reply_markup=back_button())
-
-async def auto_task_job(context: ContextTypes.DEFAULT_TYPE):
-    chat_id = context.job.data["chat_id"]
-    text, buttons = check_updates()
-    if "🆕" in text:
-        await context.bot.send_message(chat_id=chat_id, text=text,
-                                       reply_markup=InlineKeyboardMarkup(buttons) if buttons else None)
 
 # ===== Админ-панель =====
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -177,7 +170,17 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["awaiting_code"] = False
         return
 
-    # Добавление нового мода
+    # Ввод установленных версий для модов
+    if context.user_data.get("awaiting_installed_mod"):
+        mod_name = context.user_data.get("new_mod_name_for_user")
+        installed_versions = context.user_data.get("installed_versions", {})
+        installed_versions[mod_name] = text
+        context.user_data["installed_versions"] = installed_versions
+        context.user_data["awaiting_installed_mod"] = False
+        await update.message.reply_text(f"✅ Версия для '{mod_name}' сохранена!")
+        return
+
+    # Добавление нового модa админом
     if context.user_data.get("awaiting_mod_name"):
         context.user_data["new_mod_name"] = text
         context.user_data["awaiting_mod_name"] = False
@@ -195,7 +198,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ Мод '{name}' добавлен!", reply_markup=admin_menu())
         return
 
-# ===== Callback кнопки добавления мода =====
+# ===== Callback кнопки добавления модов =====
 async def add_mod_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -206,7 +209,16 @@ async def add_mod_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["awaiting_mod_name"] = True
     await query.message.reply_text("Введите название мода:")
 
-# ===== Callback список и редактирование модов =====
+# ===== Callback кнопки «Обновил» =====
+async def updated_mod_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    _, mod_name = query.data.split("|")
+    context.user_data["new_mod_name_for_user"] = mod_name
+    context.user_data["awaiting_installed_mod"] = True
+    await query.message.reply_text(f"Введите вашу установленную версию для {mod_name}:")
+
+# ===== Callback список модов =====
 async def list_mods_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await mods_list(update, context)
 
@@ -218,11 +230,12 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(menu, pattern="menu"))
 app.add_handler(CallbackQueryHandler(check_button, pattern="check"))
 app.add_handler(CallbackQueryHandler(mods_list, pattern="mods"))
-app.add_handler(CallbackQueryHandler(auto_check, pattern="auto"))
 app.add_handler(CallbackQueryHandler(admin_panel, pattern="admin"))
 app.add_handler(CallbackQueryHandler(add_mod_callback, pattern="add_mod"))
 app.add_handler(CallbackQueryHandler(list_mods_callback, pattern="list_mods"))
+app.add_handler(CallbackQueryHandler(updated_mod_callback, pattern="updated\\|"))
 
+# Обработка текстовых сообщений
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
 
 print("Бот запущен")
