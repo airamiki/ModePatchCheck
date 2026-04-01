@@ -1,7 +1,4 @@
 {
-    "XML Injector": "Just a moment...",
-    "Wonderful Whims": "Just a moment...",
-    "MC Command Center": "Downloads | MC Command Center",
-    "Wicked Whims": "WickedWhims - WickedCC",
-    "Basemental Drugs": "Basemental Drugs \u2013 Basemental Mods"
+  "XML Injector": ["3.123.45", "3.123.46"],
+  "Wonderful Whims": ["1.25.0", "1.25.1"]
 }
