@@ -241,3 +241,69 @@ app.add_handler(CallbackQueryHandler(auto_check,pattern="auto"))
 print("Бот запущен")
 
 app.run_polling()
+
+ADMIN_CODE = "kiralalka"
+
+admins = set()
+def load_mods():
+    with open("mods.json","r") as f:
+        return json.load(f)
+
+def save_mods(data):
+    with open("mods.json","w") as f:
+        json.dump(data,f,indent=4)
+        async def admin(update, context):
+
+    await update.message.reply_text(
+        "Введите кодовое слово:"
+    )
+
+    context.user_data["awaiting_code"]=True
+    async def text_handler(update,context):
+
+    text=update.message.text
+
+    if context.user_data.get("awaiting_code"):
+
+        if text==ADMIN_CODE:
+
+            admins.add(update.message.from_user.id)
+
+            await update.message.reply_text(
+                "Доступ администратора открыт"
+            )
+
+        else:
+
+            await update.message.reply_text(
+                "Неверный код"
+            )
+
+        context.user_data["awaiting_code"]=False
+        def admin_menu():
+
+    keyboard=[
+
+        [InlineKeyboardButton("➕ Добавить мод",callback_data="add_mod")],
+        [InlineKeyboardButton("⬅ Назад",callback_data="menu")]
+
+    ]
+
+    return InlineKeyboardMarkup(keyboard)
+    user_id=update.callback_query.from_user.id
+
+if user_id not in admins:
+
+    await update.callback_query.answer(
+        "Нет доступа",
+        show_alert=True
+    )
+
+    return
+    mods=load_mods()
+
+mods[name]={
+"url":link
+}
+
+save_mods(mods)
