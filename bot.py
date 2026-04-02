@@ -13,7 +13,7 @@ from telegram.ext import (
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CURSE_API_KEY = os.getenv("CURSEFORGE_API_KEY")
-HEADERS = {"x-api-key": CURSE_API_KEY}
+HEADERS = {"x-api-key": os.getenv("CURSEFORGE_API_KEY")}
 
 MODS_FILE = "mods.json"
 VERSIONS_FILE = "versions.json"
