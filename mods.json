@@ -1,0 +1,14 @@
+{
+  "Wicked Whims": {
+    "rss": "https://boosty.to/turbodriver/rss",
+    "regex": "v?\\d+[a-z]?"
+  },
+  "Basemental Drugs": {
+    "rss": "https://boosty.to/basemental/rss",
+    "regex": "v?\\d+[a-z]?"
+  },
+  "Wonderful Whims": {
+    "rss": "https://boosty.to/turbodriver/rss",
+    "regex": "v?\\d+[a-z]?"
+  }
+}
