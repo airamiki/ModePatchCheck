@@ -1,22 +1,14 @@
 {
+  "MC Command Center": {
+    "curse_project_id": 217688,
+    "download_url": "https://www.curseforge.com/sims4/mods/mc-command-center/files"
+  },
   "XML Injector": {
-    "url": "https://www.curseforge.com/sims4/mods/xml-injector/files",
-    "version_selector": ".project-file__name"
+    "curse_project_id": 274676,
+    "download_url": "https://www.curseforge.com/sims4/mods/xml-injector/files"
   },
   "Wonderful Whims": {
-    "url": "https://www.curseforge.com/sims4/mods/wonderfulwhims/files",
-    "version_selector": ".project-file__name"
-  },
-  "MC Command Center": {
-    "url": "https://deaderpool-mccc.com/downloads.html",
-    "version_selector": "h1"
-  },
-  "Wicked Whims": {
-    "url": "https://wicked.cc/mods/admin/wickedwhims/#download",
-    "version_selector": "h1"
-  },
-  "Basemental Drugs": {
-    "url": "https://basementalcc.com/adult_mods/basemental-drugs/",
-    "version_selector": "h1"
+    "curse_project_id": 180849,
+    "download_url": "https://www.curseforge.com/sims4/mods/wonderfulwhims/files"
   }
 }
